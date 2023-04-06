@@ -1,0 +1,245 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kafka-ui-ingress
+  namespace: ui
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: "15"
+    alb.ingress.kubernetes.io/healthcheck-path: /
+    alb.ingress.kubernetes.io/healthcheck-port: traffic-port
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: "5"
+    alb.ingress.kubernetes.io/healthy-threshold-count: "2"
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: "2"
+    alb.ingress.kubernetes.io/success-codes: 200,201,302
+    alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=30
+    alb.ingress.kubernetes.io/group.name: albrestricted
+    alb.ingress.kubernetes.io/scheme: internet-facing
+spec:
+  rules:
+    - host: kafka-ui.dlv-india.logistax.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kafka-ui
+                port:
+                  number: 80
+
+replicaCount: 1
+
+image:
+  registry: docker.io
+  repository: provectuslabs/kafka-ui
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+existingConfigMap: ""
+yamlApplicationConfig:
+    kafka:
+      clusters:
+        - name: kafka-ui-dlv-india
+          bootstrapServers: "b-2.fxtrt-apps-kafka-prod.gncs8b.c4.kafka.ap-south-1.amazonaws.com:9092,b-1.fxtrt-apps-kafka-prod.gncs8b.c4.kafka.ap-south-1.amazonaws.com:9092,b-3.fxtrt-apps-kafka-prod.gncs8b.c4.kafka.ap-south-1.amazonaws.com:9092"
+          schemaRegistry: http://lenses-schema-registry.lenses.svc.cluster.local:8081
+          rbac:
+            roles:
+            - name: "readonly"
+              clusters:
+              subjects:
+                 # FILL THIS
+              permissions:
+                - resource: clusterconfig
+                  actions: [ "view" ]
+
+                - resource: topic
+                  value: ".*"
+                  actions:
+                    - VIEW
+                    - MESSAGES_READ
+
+                - resource: consumer
+                  value: ".*"
+                  actions: [ view ]
+
+                - resource: schema
+                  value: ".*"
+                  actions: [ view ]
+
+                - resource: connect
+                  value: ".*"
+                  actions: [ view ]  
+    spring:
+      security:
+        oauth2:
+          client:
+            registration:
+              google:
+                client-id: 6298006589-pfbov0cpjuv5d61v13v8hhh72cd9elfm.apps.googleusercontent.com
+                client-secret: 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
+                provider: google
+            provider:
+              google:
+                user-name-attribute: email
+                custom-params:
+                  type: google
+                allowedDomain: delhivery.com
+    auth:
+       type: enabled
+#      management:
+#      health:
+#        ldap:
+#          enabled: false
+yamlApplicationConfigConfigMap:
+  {}
+  # keyName: config.yml
+  # name: configMapName
+existingSecret: ""
+envs:
+  secret: {}
+  config: {}
+
+networkPolicy:
+  enabled: false
+  egressRules:
+    ## Additional custom egress rules
+    ## e.g:
+    ## customRules:
+    ##   - to:
+    ##       - namespaceSelector:
+    ##           matchLabels:
+    ##             label: example
+    customRules: []
+  ingressRules:
+    ## Additional custom ingress rules
+    ## e.g:
+    ## customRules:
+    ##   - from:
+    ##       - namespaceSelector:
+    ##           matchLabels:
+    ##             label: example
+    customRules: []
+
+podAnnotations: {}
+podLabels: {}
+
+## Annotations to be added to kafka-ui Deployment
+##
+annotations: {}
+
+## Set field schema as HTTPS for readines and liveness probe
+##
+probes:
+  useHttpsScheme: false
+
+podSecurityContext:
+  {}
+  # fsGroup: 2000
+
+securityContext:
+  {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 80
+  # if you want to force a specific nodePort. Must be use with service.type=NodePort
+  # nodePort:
+
+# Ingress configuration
+ingress:
+  # Enable ingress resource
+  enabled: true
+
+  # Annotations for the Ingress
+  annotations: 
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: "15"
+    alb.ingress.kubernetes.io/healthcheck-path: /
+    alb.ingress.kubernetes.io/healthcheck-port: traffic-port
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: "5"
+    alb.ingress.kubernetes.io/healthy-threshold-count: "2"
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: "2"
+    alb.ingress.kubernetes.io/success-codes: 200,201,302
+    alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=30
+    alb.ingress.kubernetes.io/group.name: albrestricted
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    kubernetes.io/ingress.class: alb
+
+
+  # The path for the Ingress
+  path: "/"
+
+  # The path type for the Ingress
+  pathType: "Prefix"
+
+  # The hostname for the Ingress
+  host: kafka-ui.dlv-india.logistax.io
+
+  # configs for Ingress TLS
+  tls:
+    # Enable TLS termination for the Ingress
+    enabled: false
+    # the name of a pre-created Secret containing a TLS private key and certificate
+    secretName: ""
+
+  # HTTP paths to add to the Ingress before the default path
+  precedingPaths: []
+
+  # Http paths to add to the Ingress after the default path
+  succeedingPaths: []
+
+resources:
+  {}
+  # limits:
+  #   cpu: 200m
+  #   memory: 512Mi
+  # requests:
+  #   cpu: 200m
+  #   memory: 256Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+env: {}
+
+initContainers: {}
+
+volumeMounts: {}
+
+volumes: {}
